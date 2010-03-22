@@ -58,23 +58,32 @@ function citicell = citicell_import(fileName,debug)
 myFile = fopen(fileName,'r');
 if debug, fprintf(['\nImporting CITI data from: %s\n'],fileName), end;
 
-numBlocks = 0;          % Number of data blocks
-curBlock = 0;           % Index for looping through data blocks
-numPoints = 1;          % Number of data points
-curPoint = 0;           % Index for looping through data points/variable values
-numVars = 0;            % Number of variables
-numVPoints = [];        % Number of variable points for each variable
-curVar = 0;             % Index for looping through variables
-citicell = {{},{},{}};  % The citicell
+out = {};
+file_cnt = 0;
 
 % Loop through file and parse each line
 while 1
     
     thisLine = fgetl(myFile);           % Grab next line
     if ~ischar(thisLine), break, end;   % Break from loop if end of file
-
+    
     % Get the CITI file version
     if strcmp(thisLine(1:find(thisLine==' ')),'CITIFILE ')
+        % Reset all variables in case of multiple CITI files in same
+        % physical file, as created by ADS.
+        if file_cnt > 0
+            out{file_cnt} = citicell;
+        end
+        file_cnt = file_cnt + 1;
+        numBlocks = 0;          % Number of data blocks
+        curBlock = 0;           % Index for looping through data blocks
+        numPoints = 1;          % Number of data points
+        curPoint = 0;           % Index for looping through data points/variable values
+        numVars = 0;            % Number of variables
+        numVPoints = [];        % Number of variable points for each variable
+        curVar = 0;             % Index for looping through variables
+        citicell = {{},{},{}};  % The citicell
+        
         citicell{3}{2} = thisLine(find(thisLine==' ')+1:end);
     end
     
@@ -165,4 +174,7 @@ while 1
 
     end
 end
-fclose(myFile);    
+fclose(myFile);
+out{file_cnt} = citicell;
+citicell = out;
+
