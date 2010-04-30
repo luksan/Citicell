@@ -150,25 +150,29 @@ while 1
         curBlock = curBlock + 1;
         if debug, fprintf(['Importing Data Block %i: %s\n'],curBlock,citicell{1}{curBlock}{1}), end;
         
-        % Loop through all the data in the data block
-        for curPoint = 1:numPoints
-            thisLine = fgetl(myFile);           % Grab next datapoint
-            if strcmp(thisLine(1:end), 'END')   % If "END" appears before we read all expected data, something went wrong!
-                fprintf('*** ERROR! Only %i datapoints in datablock %i: %s.  Expecting %i datapoints. HALTING. ***\n',curPoint-1,curBlock,citicell{1}{curBlock}{1},numPoints);
-                return;
+        filePos = ftell(myFile);
+        thisLine = fgetl(myFile);           % Grab next datapoint to count commas
+        fseek(myFile, filePos, 'bof');      % seek back
+        formatStr = '%f';
+        for i = 1:length(strfind(thisLine,','))
+            formatStr = [formatStr ',%f'];
             end
-            
-            % Parse out the CSV values in the data value line
-            commas = strfind(thisLine,',');
-            commas = [0 commas length(thisLine)+1];
-            for curParam = 1:length(commas)-1
-                citicell{1}{curBlock}{3}(curPoint,curParam) = str2num(thisLine(commas(curParam)+1:commas(curParam+1)-1));
-            end
+        ts = textscan(myFile, formatStr, numPoints, 'CollectOutput', 1);
+        citicell{1}{curBlock}{3} = ts{1};
+        if length(citicell{1}{curBlock}{3}) ~= numPoints,
+            fprintf('*** ERROR! Datablock %i: %s wrong number of datapoints(%i) , expected %i datapoints.  HALTING. ***\n', ...
+                curBlock, citicell{1}{curBlock}{1}, length(citicell{1}{curBlock}{3}), numPoints);
+            return
         end
+        % eat linebreak left by textscan
+        fgetl(myFile);
         
         thisLine = fgetl(myFile);       % Grab next line
         if ~strcmp(thisLine(1:end), 'END')   % If "END" isn't the next line, something went wrong!
             fprintf('*** ERROR! Datablock %i: %s not ended after the expected %i datapoints.  HALTING. ***\n',curBlock,citicell{1}{curBlock}{1},numPoints);
+            fprintf('Line: %s\n', thisLine);
+            fprintf('Line: %s\n', fgetl(myFile));
+            fprintf('Line: %s\n', fgetl(myFile));
             return;
         end
 
@@ -177,4 +181,3 @@ end
 fclose(myFile);
 out{file_cnt} = citicell;
 citicell = out;
-
